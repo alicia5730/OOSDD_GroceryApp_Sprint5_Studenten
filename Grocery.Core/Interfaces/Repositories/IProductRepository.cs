@@ -4,14 +4,18 @@ namespace Grocery.Core.Interfaces.Repositories
 {
     public interface IProductRepository
     {
-        public List<Product> GetAll();
+        // Sync methods (for existing code)
+        List<Product> GetAll();
+        Product? Get(int id);
+        Product Add(Product item);
+        Product? Delete(Product item);
+        Product? Update(Product item);
 
-        public Product? Get(int id);
-
-        public Product Add(Product item);
-
-        public Product? Delete(Product item);
-
-        public Product? Update(Product item);
+        // Async versions (for services that use async/await)
+        Task<IEnumerable<Product>> GetAllAsync();
+        Task<Product?> GetAsync(int id);
+        Task<Product> AddAsync(Product item);
+        Task<Product?> UpdateAsync(Product item);
+        Task<Product?> DeleteAsync(Product item);
     }
 }

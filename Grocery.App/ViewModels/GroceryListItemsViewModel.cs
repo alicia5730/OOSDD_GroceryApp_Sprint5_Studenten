@@ -16,58 +16,81 @@ namespace Grocery.App.ViewModels
         private readonly IProductService _productService;
         private readonly IFileSaverService _fileSaverService;
         private string searchText = "";
-        public ObservableCollection<GroceryListItem> MyGroceryListItems { get; set; } = [];
-        public ObservableCollection<Product> AvailableProducts { get; set; } = [];
+
+        public ObservableCollection<GroceryListItem> MyGroceryListItems { get; set; } = new();
+        public ObservableCollection<Product> AvailableProducts { get; set; } = new();
 
         [ObservableProperty]
         GroceryList groceryList = new(0, "None", DateOnly.MinValue, "", 0);
+
         [ObservableProperty]
         string myMessage;
 
-        public GroceryListItemsViewModel(IGroceryListItemsService groceryListItemsService, IProductService productService, IFileSaverService fileSaverService)
+        public GroceryListItemsViewModel(
+            IGroceryListItemsService groceryListItemsService,
+            IProductService productService,
+            IFileSaverService fileSaverService)
         {
             _groceryListItemsService = groceryListItemsService;
             _productService = productService;
             _fileSaverService = fileSaverService;
-            Load(groceryList.Id);
+
+            _ = LoadAsync(groceryList.Id); // fire async on init
         }
 
-        private void Load(int id)
+        private async Task LoadAsync(int id)
         {
             MyGroceryListItems.Clear();
-            foreach (var item in _groceryListItemsService.GetAllOnGroceryListId(id)) MyGroceryListItems.Add(item);
-            GetAvailableProducts();
+
+            var listItems = _groceryListItemsService.GetAllOnGroceryListId(id);
+            foreach (var item in listItems)
+                MyGroceryListItems.Add(item);
+
+            await GetAvailableProductsAsync();
         }
 
-        private void GetAvailableProducts()
+        private async Task GetAvailableProductsAsync()
         {
             AvailableProducts.Clear();
-            foreach (Product p in _productService.GetAll())
-                if (MyGroceryListItems.FirstOrDefault(g => g.ProductId == p.Id) == null  && p.Stock > 0 && (searchText=="" || p.Name.ToLower().Contains(searchText.ToLower())))
+
+            var allProducts = await _productService.GetAllAsync();
+
+            foreach (Product p in allProducts)
+            {
+                bool alreadyInList = MyGroceryListItems.Any(g => g.ProductId == p.Id);
+                bool matchesSearch = string.IsNullOrWhiteSpace(searchText)
+                                     || p.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase);
+
+                if (!alreadyInList && p.Stock > 0 && matchesSearch)
                     AvailableProducts.Add(p);
+            }
         }
 
         partial void OnGroceryListChanged(GroceryList value)
         {
-            Load(value.Id);
+            _ = LoadAsync(value.Id);
         }
 
         [RelayCommand]
         public async Task ChangeColor()
         {
-            Dictionary<string, object> paramater = new() { { nameof(GroceryList), GroceryList } };
-            await Shell.Current.GoToAsync($"{nameof(ChangeColorView)}?Name={GroceryList.Name}", true, paramater);
+            Dictionary<string, object> parameter = new() { { nameof(GroceryList), GroceryList } };
+            await Shell.Current.GoToAsync($"{nameof(ChangeColorView)}?Name={GroceryList.Name}", true, parameter);
         }
+
         [RelayCommand]
-        public void AddProduct(Product product)
+        public async Task AddProduct(Product product)
         {
             if (product == null) return;
+
             GroceryListItem item = new(0, GroceryList.Id, product.Id, 1);
             _groceryListItemsService.Add(item);
+
             product.Stock--;
-            _productService.Update(product);
+            await _productService.UpdateAsync(product);
+
             AvailableProducts.Remove(product);
-            OnGroceryListChanged(GroceryList);
+            await GetAvailableProductsAsync();
         }
 
         [RelayCommand]
@@ -75,6 +98,7 @@ namespace Grocery.App.ViewModels
         {
             if (GroceryList == null || MyGroceryListItems == null) return;
             string jsonString = JsonSerializer.Serialize(MyGroceryListItems);
+
             try
             {
                 await _fileSaverService.SaveFileAsync("Boodschappen.json", jsonString, cancellationToken);
@@ -87,36 +111,40 @@ namespace Grocery.App.ViewModels
         }
 
         [RelayCommand]
-        public void PerformSearch(string searchText)
+        public async Task PerformSearch(string searchText)
         {
             this.searchText = searchText;
-            GetAvailableProducts();
+            await GetAvailableProductsAsync();
         }
 
         [RelayCommand]
-        public void IncreaseAmount(int productId)
+        public async Task IncreaseAmount(int productId)
         {
             GroceryListItem? item = MyGroceryListItems.FirstOrDefault(x => x.ProductId == productId);
             if (item == null) return;
             if (item.Amount >= item.Product.Stock) return;
+
             item.Amount++;
             _groceryListItemsService.Update(item);
             item.Product.Stock--;
-            _productService.Update(item.Product);
-            OnGroceryListChanged(GroceryList);
+
+            await _productService.UpdateAsync(item.Product);
+            await GetAvailableProductsAsync();
         }
 
         [RelayCommand]
-        public void DecreaseAmount(int productId)
+        public async Task DecreaseAmount(int productId)
         {
             GroceryListItem? item = MyGroceryListItems.FirstOrDefault(x => x.ProductId == productId);
             if (item == null) return;
             if (item.Amount <= 0) return;
+
             item.Amount--;
             _groceryListItemsService.Update(item);
             item.Product.Stock++;
-            _productService.Update(item.Product);
-            OnGroceryListChanged(GroceryList);
+
+            await _productService.UpdateAsync(item.Product);
+            await GetAvailableProductsAsync();
         }
     }
 }
