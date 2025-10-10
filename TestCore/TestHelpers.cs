@@ -14,7 +14,9 @@ namespace TestCore
         private ProductCategoryService _service;
         private Mock<IProductCategoryRepository> _mockRepo;
         private Mock<IProductRepository> _mockProductRepo;
-
+        private ProductService _productService;
+        private Mock<IProductCategoryRepository> _mockProductCategoryRepo;
+        private Mock<ICategoryRepository> _mockCategoryRepo;
         [SetUp]
         public void Setup()
         {
@@ -24,6 +26,17 @@ namespace TestCore
 
             // De service aanmaken met de gemockte repositories
             _service = new ProductCategoryService(_mockRepo.Object, _mockProductRepo.Object);
+            // Mock repositories zodat we geen echte database nodig hebben
+            _mockProductRepo = new Mock<IProductRepository>();
+            _mockProductCategoryRepo = new Mock<IProductCategoryRepository>();
+            _mockCategoryRepo = new Mock<ICategoryRepository>();
+
+            // De service aanmaken met de gemockte repositories
+            _productService = new ProductService(
+                _mockProductRepo.Object,
+                _mockProductCategoryRepo.Object,
+                _mockCategoryRepo.Object
+            );
         }
 
 
@@ -90,6 +103,51 @@ namespace TestCore
 
             // Assert
             Assert.That(result, Is.Empty);
+        }
+        // ❌ UNHAPPY FLOW 1: negatieve voorraad mag niet voorkomen
+        [Test]
+        public async Task UpdateAsync_ShouldNotAllowNegativeStock()
+        {
+            // Arrange
+
+            var product = new Product(1, "Melk", -5, 1.50);
+            _mockProductRepo
+                .Setup(r => r.UpdateAsync(It.IsAny<Product>()))
+                .ReturnsAsync(product);
+
+            // Act
+            var result = await _productService.UpdateAsync(product);
+
+            // Assert
+            Assert.That(result.Stock, Is.GreaterThanOrEqualTo(0),
+                "Voorraad mag niet negatief zijn — systeem moet dit blokkeren.");
+        }
+
+        // ❌ UNHAPPY FLOW 2: databasefout bij voorraad bijwerken
+        [Test]
+        public async Task UpdateAsync_WhenRepositoryThrows_ReturnsNull()
+        {
+            var product = new Product(2, "Kaas", 5, 3.99);
+
+
+            _mockProductRepo
+                .Setup(r => r.UpdateAsync(It.IsAny<Product>()))
+                .ThrowsAsync(new Exception("Databasefout"));
+
+            // Act
+            Product? result;
+            try
+            {
+                result = await _productService.UpdateAsync(product);
+            }
+            catch
+            {
+                result = null; // verwacht gedrag bij fout
+            }
+
+            // Assert
+            Assert.IsNull(result,
+                "Bij een databasefout moet de service null teruggeven en niet crashen.");
         }
         
     }

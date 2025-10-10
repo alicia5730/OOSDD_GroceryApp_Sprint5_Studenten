@@ -38,8 +38,26 @@ namespace Grocery.Core.Services
 
         public async Task<Product?> UpdateAsync(Product item)
         {
-            return await productRepo.UpdateAsync(item);
+            // 1️⃣ Controleer of voorraad geldig is
+            if (item.Stock < 0)
+            {
+                // Zet op 0 of gooi een exception — jouw keuze
+                item.Stock = 0;
+                Console.WriteLine("⚠️ Voorraad was negatief en is hersteld naar 0.");
+            }
+
+            try
+            {
+                // 2️⃣ Update uitvoeren
+                return await productRepo.UpdateAsync(item);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Fout bij updaten product: {ex.Message}");
+                return null; // veilig teruggeven bij fout
+            }
         }
+
 
         public async Task<Product?> DeleteAsync(Product item)
         {
