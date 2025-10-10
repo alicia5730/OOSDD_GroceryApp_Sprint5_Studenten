@@ -73,10 +73,12 @@ jobs:
           name: GroceryApp-Windows
           path: ./artifacts/windows
 
-      # ✅ Android MAUI build
-      - name: Publish MAUI Android
-        if: success()
+      # 🧠 Publish Android alleen als SDK aanwezig is (of handmatig ingeschakeld)
+      - name: Publish MAUI Android (optional)
+        if: success() && env.ANDROID_SDK_ROOT != ''
+        continue-on-error: true
         run: |
+          echo "📱 Android SDK gevonden, probeer te builden..."
           dotnet publish Grocery.App/Grocery.App.csproj `
             -c Release `
             -f net8.0-android `
@@ -85,7 +87,7 @@ jobs:
             -o ./artifacts/android
 
       - name: Upload Android artifact
-        if: success()
+        if: success() && env.ANDROID_SDK_ROOT != ''
         uses: actions/upload-artifact@v4
         with:
           name: GroceryApp-Android
