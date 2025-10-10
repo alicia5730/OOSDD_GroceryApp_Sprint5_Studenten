@@ -17,18 +17,25 @@ namespace Grocery.Core.Services
 
         public async Task<IEnumerable<Product>> GetByCategoryIdAsync(int categoryId)
         {
-            // 1️⃣ Haal alle product-IDs op die bij de categorie horen
-            var productIds = await repo.GetProductIdsByCategoryIdAsync(categoryId);
+            try
+            {
+                // 1️⃣ Haal product-IDs op van de categorie
+                var productIds = await repo.GetProductIdsByCategoryIdAsync(categoryId) ?? new List<int>();
 
-            // 2️⃣ Haal alle producten op
-            var allProducts = await productRepo.GetAllAsync();
+                // 2️⃣ Haal alle producten op
+                var allProducts = await productRepo.GetAllAsync() ?? new List<Product>();
 
-            // 3️⃣ Filter producten op basis van IDs
-            var matchingProducts = allProducts.Where(p => productIds.Contains(p.Id));
-
-            return matchingProducts;
+                // 3️⃣ Filter de producten op basis van ID’s
+                var matchingProducts = allProducts.Where(p => productIds.Contains(p.Id));
+                return matchingProducts;
+            }
+            catch (Exception ex)
+            {
+                // 4️⃣ Log of vang de fout op, maar laat de app niet crashen
+                Console.WriteLine($"[ProductCategoryService] Fout bij ophalen producten: {ex.Message}");
+                return new List<Product>(); // Geef een lege lijst terug in plaats van crash
+            }
         }
-        
 
         public async Task<IEnumerable<ProductCategory>> GetAllAsync()
         {
