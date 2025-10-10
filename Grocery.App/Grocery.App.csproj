@@ -2,8 +2,8 @@
 
   <!-- Platform-specific targeting -->
   <PropertyGroup>
-    <!-- On Windows (CI / local dev): only Android + Windows -->
-      <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- On Windows (CI / local dev): Android + Windows -->
+    <TargetFrameworks>net8.0-windows10.0.19041.0;net8.0-android</TargetFrameworks>
 
     <OutputType>Exe</OutputType>
     <RootNamespace>Grocery.App</RootNamespace>
