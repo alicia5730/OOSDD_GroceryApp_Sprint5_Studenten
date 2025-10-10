@@ -2,30 +2,55 @@
 using CommunityToolkit.Mvvm.Input;
 using Grocery.Core.Interfaces.Services;
 using Grocery.Core.Models;
-using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace Grocery.App.ViewModels
 {
     public partial class BoughtProductsViewModel : BaseViewModel
     {
         private readonly IBoughtProductsService _boughtProductsService;
+        private readonly IProductService _productService;
 
         [ObservableProperty]
-        Product selectedProduct;
-        public ObservableCollection<BoughtProducts> BoughtProductsList { get; set; } = [];
-        public ObservableCollection<Product> Products { get; set; }
+        private Product selectedProduct;
 
-        public BoughtProductsViewModel(IBoughtProductsService boughtProductsService, IProductService productService) 
+        public ObservableCollection<BoughtProducts> BoughtProductsList { get; set; } = new();
+        public ObservableCollection<Product> Products { get; set; } = new();
+
+        public BoughtProductsViewModel(
+            IBoughtProductsService boughtProductsService,
+            IProductService productService)
         {
             _boughtProductsService = boughtProductsService;
-            Products = new(productService.GetAll());
+            _productService = productService;
+
+            _ = LoadProductsAsync(); // fire and forget async call
+        }
+
+        private async Task LoadProductsAsync()
+        {
+            var allProducts = await _productService.GetAllAsync();
+            foreach (var product in allProducts)
+            {
+                Products.Add(product);
+            }
         }
 
         partial void OnSelectedProductChanged(Product? oldValue, Product newValue)
         {
+            _ = LoadBoughtProductsAsync(newValue);
+        }
+
+        private async Task LoadBoughtProductsAsync(Product product)
+        {
             BoughtProductsList.Clear();
-            List<BoughtProducts> list = _boughtProductsService.Get(newValue.Id);
+
+            // Assuming Get() is synchronous — we can wrap it in Task.Run if needed
+            var list = await Task.Run(() => _boughtProductsService.Get(product.Id));
+
             foreach (var item in list)
             {
                 BoughtProductsList.Add(item);

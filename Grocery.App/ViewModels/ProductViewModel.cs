@@ -7,13 +7,21 @@ namespace Grocery.App.ViewModels
     public class ProductViewModel : BaseViewModel
     {
         private readonly IProductService _productService;
-        public ObservableCollection<Product> Products { get; set; }
+        public ObservableCollection<Product> Products { get; set; } = new();
 
         public ProductViewModel(IProductService productService)
         {
             _productService = productService;
-            Products = [];
-            foreach (Product p in _productService.GetAll()) Products.Add(p);
+            _ = LoadProductsAsync(); // fire and forget
+        }
+
+        private async Task LoadProductsAsync()
+        {
+            var products = await _productService.GetAllAsync();
+            foreach (var p in products)
+            {
+                Products.Add(p);
+            }
         }
     }
 }

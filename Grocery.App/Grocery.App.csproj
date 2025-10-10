@@ -2,15 +2,8 @@
 
   <!-- Platform-specific targeting -->
   <PropertyGroup>
-    <!-- On Windows (CI / local dev): only Android + Windows -->
-    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-      net8.0-android;net8.0-windows10.0.19041.0
-    </TargetFrameworks>
-
-    <!-- On macOS: build all Apple platforms -->
-    <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('Windows'))">
-      net8.0-android;net8.0-ios;net8.0-maccatalyst
-    </TargetFrameworks>
+    <!-- On Windows (CI / local dev): Android + Windows -->
+    <TargetFrameworks>net8.0-windows10.0.19041.0;net8.0-android</TargetFrameworks>
 
     <OutputType>Exe</OutputType>
     <RootNamespace>Grocery.App</RootNamespace>
@@ -83,6 +76,7 @@
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
+    <PackageReference Include="Moq" Version="4.20.72" />
   </ItemGroup>
 
   <ItemGroup>

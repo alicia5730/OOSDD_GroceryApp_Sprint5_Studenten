@@ -19,6 +19,13 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      # ✅ Install MAUI workloads
+      - name: Install MAUI workloads
+        run: |
+          dotnet workload install maui
+          dotnet workload install maui-android
+          dotnet workload install maui-windows
+
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
@@ -31,11 +38,7 @@ jobs:
         run: dotnet clean Grocery.sln
 
       - name: Restore all projects
-        run: |
-          dotnet restore Grocery.Core/Grocery.Core.csproj
-          dotnet restore Grocery.Core.Data/Grocery.Core.Data.csproj
-          dotnet restore Grocery.App/Grocery.App.csproj
-          dotnet restore TestCore/TestCore.csproj
+        run: dotnet restore Grocery.sln
 
       - name: Build solution
         run: dotnet build Grocery.sln --configuration Release --no-restore
@@ -50,7 +53,7 @@ jobs:
           name: TestResults
           path: ./TestResults
 
-      # ✅ PowerShell syntax for multi-line publish
+      # ✅ Windows MAUI build
       - name: Publish MAUI Windows
         if: success()
         run: |
@@ -70,6 +73,7 @@ jobs:
           name: GroceryApp-Windows
           path: ./artifacts/windows
 
+      # ✅ Android MAUI build
       - name: Publish MAUI Android
         if: success()
         run: |

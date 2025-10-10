@@ -4,14 +4,16 @@ namespace Grocery.Core.Interfaces.Services
 {
     public interface IProductService
     {
-        public List<Product> GetAll();
+        Task<IEnumerable<Product>> GetAllAsync();
+        Task<Product?> GetAsync(int id);
+        Task<Product> AddAsync(Product item);
+        Task<Product?> UpdateAsync(Product item);
+        Task<Product?> DeleteAsync(Product item);
 
-        public Product Add(Product item);
+        // Optional if you want filtering by category
+        Task<IEnumerable<Product>> GetByCategoryIdAsync(int categoryId);
 
-        public Product? Delete(Product item);
-
-        public Product? Get(int id);
-
-        public Product? Update(Product item);
+        // Optional if you want the reverse lookup
+        Task<IEnumerable<Category>> GetCategoriesByProductIdAsync(int productId);
     }
 }

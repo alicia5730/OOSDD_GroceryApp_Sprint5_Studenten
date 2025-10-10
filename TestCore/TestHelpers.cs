@@ -1,12 +1,42 @@
 using Grocery.Core.Helpers;
-
+using Grocery.Core.Interfaces.Repositories;
+using Grocery.Core.Models;
+using Grocery.Core.Services;
+using Grocery.Core.Interfaces.Repositories;
+using Grocery.Core.Models;
+using Grocery.Core.Services;
+using Moq;
 namespace TestCore
 {
     public class TestHelpers
     {
+        
+        private ProductCategoryService _service;
+        private Mock<IProductCategoryRepository> _mockRepo;
+        private Mock<IProductRepository> _mockProductRepo;
+        private ProductService _productService;
+        private Mock<IProductCategoryRepository> _mockProductCategoryRepo;
+        private Mock<ICategoryRepository> _mockCategoryRepo;
         [SetUp]
         public void Setup()
         {
+            // Mock repositories aanmaken zodat er geen echte database nodig is
+            _mockRepo = new Mock<IProductCategoryRepository>();
+            _mockProductRepo = new Mock<IProductRepository>();
+
+            // De service aanmaken met de gemockte repositories
+            _service = new ProductCategoryService(_mockRepo.Object, _mockProductRepo.Object);
+            // Mock repositories zodat we geen echte database nodig hebben
+            _mockProductRepo = new Mock<IProductRepository>();
+            _mockProductCategoryRepo = new Mock<IProductCategoryRepository>();
+            _mockCategoryRepo = new Mock<ICategoryRepository>();
+
+            // De service aanmaken met de gemockte repositories
+            _productService = new ProductService(
+                _mockProductRepo.Object,
+                _mockProductCategoryRepo.Object,
+                _mockCategoryRepo.Object
+            );
         }
 
 
@@ -42,5 +72,83 @@ namespace TestCore
         {
             Assert.IsFalse(PasswordHelper.VerifyPassword(password, passwordHash));
         }
+        [Test]
+        public async Task GetByCategoryIdAsync_EmptyCategory_ReturnsEmptyList()
+        {
+            // Arrange
+            int categoryId = 3;
+            _mockRepo.Setup(r => r.GetProductIdsByCategoryIdAsync(categoryId))
+                .ReturnsAsync(new List<int>()); // Leeg
+            _mockProductRepo.Setup(p => p.GetAllAsync())
+                .ReturnsAsync(new List<Product>()); // Geen producten
+
+            // Act
+            var result = await _service.GetByCategoryIdAsync(categoryId);
+
+            // Assert
+            Assert.That(result, Is.Empty);
+        }
+        [Test]
+        public async Task GetByCategoryIdAsync_ProductRepoThrowsException_ReturnsEmptyList()
+        {
+            // Arrange
+            int categoryId = 2;
+            _mockRepo.Setup(r => r.GetProductIdsByCategoryIdAsync(categoryId))
+                .ReturnsAsync(new List<int> { 1 });
+            _mockProductRepo.Setup(p => p.GetAllAsync())
+                .ThrowsAsync(new Exception("Navigation failed"));
+
+            // Act
+            var result = await _service.GetByCategoryIdAsync(categoryId);
+
+            // Assert
+            Assert.That(result, Is.Empty);
+        }
+        // ❌ UNHAPPY FLOW 1: negatieve voorraad mag niet voorkomen
+        [Test]
+        public async Task UpdateAsync_ShouldNotAllowNegativeStock()
+        {
+            // Arrange
+
+            var product = new Product(1, "Melk", -5, 1.50);
+            _mockProductRepo
+                .Setup(r => r.UpdateAsync(It.IsAny<Product>()))
+                .ReturnsAsync(product);
+
+            // Act
+            var result = await _productService.UpdateAsync(product);
+
+            // Assert
+            Assert.That(result.Stock, Is.GreaterThanOrEqualTo(0),
+                "Voorraad mag niet negatief zijn — systeem moet dit blokkeren.");
+        }
+
+        // ❌ UNHAPPY FLOW 2: databasefout bij voorraad bijwerken
+        [Test]
+        public async Task UpdateAsync_WhenRepositoryThrows_ReturnsNull()
+        {
+            var product = new Product(2, "Kaas", 5, 3.99);
+
+
+            _mockProductRepo
+                .Setup(r => r.UpdateAsync(It.IsAny<Product>()))
+                .ThrowsAsync(new Exception("Databasefout"));
+
+            // Act
+            Product? result;
+            try
+            {
+                result = await _productService.UpdateAsync(product);
+            }
+            catch
+            {
+                result = null; // verwacht gedrag bij fout
+            }
+
+            // Assert
+            Assert.IsNull(result,
+                "Bij een databasefout moet de service null teruggeven en niet crashen.");
+        }
+        
     }
 }

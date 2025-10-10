@@ -6,36 +6,81 @@ namespace Grocery.Core.Services
 {
     public class ProductService : IProductService
     {
-        private readonly IProductRepository _productRepository;
+        private readonly IProductRepository productRepo;
+        private readonly IProductCategoryRepository productCategoryRepo;
+        private readonly ICategoryRepository categoryRepo;
 
-        public ProductService(IProductRepository productRepository)
+        public ProductService(
+            IProductRepository productRepo,
+            IProductCategoryRepository productCategoryRepo,
+            ICategoryRepository categoryRepo)
         {
-            _productRepository = productRepository;
+            this.productRepo = productRepo;
+            this.productCategoryRepo = productCategoryRepo;
+            this.categoryRepo = categoryRepo;
         }
 
-        public List<Product> GetAll()
+        public async Task<IEnumerable<Product>> GetAllAsync()
         {
-            return _productRepository.GetAll();
+            return await productRepo.GetAllAsync();
         }
 
-        public Product Add(Product item)
+        public async Task<Product?> GetAsync(int id)
         {
-            throw new NotImplementedException();
+            var all = await productRepo.GetAllAsync();
+            return all.FirstOrDefault(p => p.Id == id);
         }
 
-        public Product? Delete(Product item)
+        public async Task<Product> AddAsync(Product item)
         {
-            throw new NotImplementedException();
+            return await productRepo.AddAsync(item);
         }
 
-        public Product? Get(int id)
+        public async Task<Product?> UpdateAsync(Product item)
         {
-            throw new NotImplementedException();
+            // 1️⃣ Controleer of voorraad geldig is
+            if (item.Stock < 0)
+            {
+                // Zet op 0 of gooi een exception — jouw keuze
+                item.Stock = 0;
+                Console.WriteLine("⚠️ Voorraad was negatief en is hersteld naar 0.");
+            }
+
+            try
+            {
+                // 2️⃣ Update uitvoeren
+                return await productRepo.UpdateAsync(item);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Fout bij updaten product: {ex.Message}");
+                return null; // veilig teruggeven bij fout
+            }
         }
 
-        public Product? Update(Product item)
+
+        public async Task<Product?> DeleteAsync(Product item)
         {
-            return _productRepository.Update(item);
+            return await productRepo.DeleteAsync(item);
+        }
+
+        public async Task<IEnumerable<Product>> GetByCategoryIdAsync(int categoryId)
+        {
+            var productIds = await productCategoryRepo.GetProductIdsByCategoryIdAsync(categoryId);
+            var allProducts = await productRepo.GetAllAsync();
+            return allProducts.Where(p => productIds.Contains(p.Id));
+        }
+
+        public async Task<IEnumerable<Category>> GetCategoriesByProductIdAsync(int productId)
+        {
+            var allLinks = await productCategoryRepo.GetAllAsync();
+            var categoryIds = allLinks
+                .Where(pc => pc.ProductId == productId)
+                .Select(pc => pc.CategoryId)
+                .Distinct();
+
+            var allCategories = await categoryRepo.GetAllAsync();
+            return allCategories.Where(c => categoryIds.Contains(c.Id));
         }
     }
 }
